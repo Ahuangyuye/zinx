@@ -3,6 +3,7 @@ package znet
 import (
 	"fmt"
 	"net"
+	"zinx/src/zinx/utils"
 	"zinx/src/zinx/ziface"
 )
 
@@ -39,8 +40,14 @@ type Server struct {
 
 // 启动服务器
 func (s *Server) Start()  {
+
+	fmt.Printf("[Zinx] server Name:%s listenner at IP:%s port:%d is starting \n", utils.GlobalObject.StrName,  utils.GlobalObject.StrHostIP,utils.GlobalObject.ITcpPort)
+
+	fmt.Printf("[Zinx] Version=%s,MaxConn:%d,MaxPackageSize:%d\n",utils.GlobalObject.StrVersion,utils.GlobalObject.IMaxConn,utils.GlobalObject.IMaxPackageSize)
+
+	//fmt.Printf("[start] server listenner at IP:%s port:%d is starting \n",s.strIP,s.iPort)
+
 	go func() {
-		fmt.Printf("[start] server listenner at IP:%s port:%d is starting \n",s.strIP,s.iPort)
 		// 1 获取一个TCP的Addr
 		strIPandPort := fmt.Sprintf("%s:%d",s.strIP,s.iPort)
 		strAddr,err := net.ResolveTCPAddr(s.strIPVersion,strIPandPort)
@@ -108,11 +115,18 @@ func (pS *Server)AddRouter(router ziface.IRouter)  {
 
 // 初始化server 模块的方法
 func NewServer(strNameIn string) ziface.IServer {
+	//objS := &Server{
+	//	strName:  strNameIn,
+	//	strIPVersion: "tcp4",
+	//	strIP: "0.0.0.0",
+	//	iPort: 8999,
+	//	objRouter: nil,
+	//}
 	objS := &Server{
-		strName:  strNameIn,
+		strName:  utils.GlobalObject.StrName, //utils.pGlobalObject,
 		strIPVersion: "tcp4",
-		strIP: "0.0.0.0",
-		iPort: 8999,
+		strIP: utils.GlobalObject.StrHostIP,
+		iPort: utils.GlobalObject.ITcpPort,
 		objRouter: nil,
 	}
 	return objS
