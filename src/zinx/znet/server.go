@@ -1,7 +1,6 @@
 package znet
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"zinx/src/zinx/ziface"
@@ -20,18 +19,21 @@ type Server struct {
 
 	// 服务器监听的端口
 	iPort int
+
+	// 当前的Server 添加一个 router , server 注册的连接对应的处理业务
+	objRouter ziface.IRouter
 }
 
-// 定义当前客户端连接的所绑定的handleAPI (目前这个handle 是写死的)，以后由调用者来	自定义
-func CallBackTOClient( pConn *net.TCPConn, aData[]byte,iDataLen int) error {
-	// 回写的业务
-	fmt.Println("[pConn Handle CallbackToClient]...")
-	if _,err := pConn.Write(aData[:iDataLen]); err != nil {
-		fmt.Println("write back buf err=",err)
-		return errors.New("CallBackTOClient error ")
-	}
-	return  nil
-}
+//// 定义当前客户端连接的所绑定的handleAPI (目前这个handle 是写死的)，以后由调用者来	自定义
+//func CallBackTOClient( pConn *net.TCPConn, aData[]byte,iDataLen int) error {
+//	// 回写的业务
+//	fmt.Println("[pConn Handle CallbackToClient]...")
+//	if _,err := pConn.Write(aData[:iDataLen]); err != nil {
+//		fmt.Println("write back buf err=",err)
+//		return errors.New("CallBackTOClient error ")
+//	}
+//	return  nil
+//}
 
 
 
@@ -67,7 +69,7 @@ func (s *Server) Start()  {
 			}
 
 			// 将处理新连接的业务方法 和 conn 进行绑定，得到连接模块以便后续调用
-			pDealConn  := NewConnection(pConn,iCID,CallBackTOClient)
+			pDealConn  := NewConnection(pConn,iCID,s.objRouter)
 			iCID ++
 			// 启动当前的连接业务处理
 			go pDealConn.Start()
@@ -96,6 +98,14 @@ func (s *Server) Server()  {
 	}
 }
 
+// 路由功能，给当前的服务注册一个路由方法, 供客户端的连接处理使用
+func (pS *Server)AddRouter(router ziface.IRouter)  {
+
+	pS.objRouter = router
+	fmt.Println("add router succ !!!")
+}
+
+
 // 初始化server 模块的方法
 func NewServer(strNameIn string) ziface.IServer {
 	objS := &Server{
@@ -103,6 +113,7 @@ func NewServer(strNameIn string) ziface.IServer {
 		strIPVersion: "tcp4",
 		strIP: "0.0.0.0",
 		iPort: 8999,
+		objRouter: nil,
 	}
 	return objS
 }
