@@ -22,7 +22,11 @@ type Server struct {
 	iPort int
 
 	// 当前的Server 添加一个 router , server 注册的连接对应的处理业务
-	objRouter ziface.IRouter
+	//objRouter ziface.IRouter
+
+	// 当前 server 的消息管理模块，用了绑定 MsgID 和对应的处理业务API关系
+	pMsgHandler ziface.IMsgHandle
+
 }
 
 //// 定义当前客户端连接的所绑定的handleAPI (目前这个handle 是写死的)，以后由调用者来	自定义
@@ -76,7 +80,7 @@ func (s *Server) Start()  {
 			}
 
 			// 将处理新连接的业务方法 和 conn 进行绑定，得到连接模块以便后续调用
-			pDealConn  := NewConnection(pConn,iCID,s.objRouter)
+			pDealConn  := NewConnection(pConn,iCID,s.pMsgHandler)
 			iCID ++
 			// 启动当前的连接业务处理
 			go pDealConn.Start()
@@ -106,9 +110,9 @@ func (s *Server) Server()  {
 }
 
 // 路由功能，给当前的服务注册一个路由方法, 供客户端的连接处理使用
-func (pS *Server)AddRouter(router ziface.IRouter)  {
-
-	pS.objRouter = router
+func (pS *Server)AddRouter(iMsgID uint32, router ziface.IRouter)  {
+	pS.pMsgHandler.AddRouter(iMsgID,router)
+	//pS.objRouter = router
 	fmt.Println("add router succ !!!")
 }
 
@@ -127,7 +131,8 @@ func NewServer(strNameIn string) ziface.IServer {
 		strIPVersion: "tcp4",
 		strIP: utils.GlobalObject.StrHostIP,
 		iPort: utils.GlobalObject.ITcpPort,
-		objRouter: nil,
+		//objRouter: nil,
+		pMsgHandler:NewMsgHandler(),
 	}
 	return objS
 }

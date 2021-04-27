@@ -1,0 +1,15 @@
+
+
+{
+    "StrName":"zinx v0.6 demoServerApp",
+    "StrHostIP":"127.0.0.1",
+    "ITcpPort":8999,
+    "IMaxConn":3
+}
+
+
+
+
+
+
+

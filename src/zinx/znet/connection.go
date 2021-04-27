@@ -28,18 +28,20 @@ type Connection struct {
 	ExitChan chan bool
 
 	// 该连接处理的方法 Router
-	objRouter ziface.IRouter
+	//objRouter ziface.IRouter
 
+	// 消息的管理 MsgID 和 对应的处理业务的API关系
+	pMsgHandle ziface.IMsgHandle
 }
 
 
 
 // 初始化连接模块的方法
-func NewConnection( pConn *net.TCPConn,iConnID uint32,router ziface.IRouter ) *Connection {
+func NewConnection( pConn *net.TCPConn,iConnID uint32,msgHanle ziface.IMsgHandle) *Connection {
 	pC := &Connection{
 		pConn: pConn,
 		iConnID: iConnID,
-		objRouter: router,
+		pMsgHandle: msgHanle,
 		isClosed: false,
 		ExitChan: make(chan bool,1),
 	}
@@ -96,19 +98,9 @@ func (pC *Connection)StartReadr()  {
 			objMsg: msg,
 		}
 
-		// 执行注册的路由方法
-		go func(pReq ziface.IRequest) {
-			// 从 路由中，找到注册绑定的 conn 对应的router调用
-			pC.objRouter.PreHandle(pReq)
-			pC.objRouter.Handler(pReq)
-			pC.objRouter.PostHandler(pReq)
-		}(&objReq)
-
-		//// 调用当前连接所绑定的HandleAPI
-		//if err := pC.handleAPIfunc(pC.pConn,aBuf,iCount); err != nil {
-		//	fmt.Println("iConnID=",pC.iConnID,"handleAPI is error ",err)
-		//	break
-		//}
+		// 从路由中，找到注册绑定的Conn 对应的router 调用
+		// 根据绑定好的 msgID  找到对应处理业务的 API 业务执行
+		go pC.pMsgHandle.DoMsgHandler(&objReq)
 	}
 }
 
