@@ -27,8 +27,9 @@ type Connection struct {
 	// 告知当前连接已经退出/停止 channel
 	ExitChan chan bool
 
-	// 该连接处理的方法 Router
-	//objRouter ziface.IRouter
+	// 无缓冲管道，用于读写 Goroutine 之间的通信
+	msgChan chan []byte
+
 
 	// 消息的管理 MsgID 和 对应的处理业务的API关系
 	pMsgHandle ziface.IMsgHandle
@@ -43,6 +44,7 @@ func NewConnection( pConn *net.TCPConn,iConnID uint32,msgHanle ziface.IMsgHandle
 		iConnID: iConnID,
 		pMsgHandle: msgHanle,
 		isClosed: false,
+		msgChan: make(chan []byte),
 		ExitChan: make(chan bool,1),
 	}
 	return pC
@@ -51,10 +53,10 @@ func NewConnection( pConn *net.TCPConn,iConnID uint32,msgHanle ziface.IMsgHandle
 
 // 当前连接的读数据的业务
 func (pC *Connection)StartReadr()  {
-	fmt.Println("Reader Coroutine is runnig ...")
+	fmt.Println("[Reader Goroutine is runnig] ...")
 
 
-	defer fmt.Println("iConnID=",pC.iConnID,"Reader is exit",pC.RemoteAddr().String())
+	defer fmt.Println("iConnID=",pC.iConnID,"[Reader is exit]",pC.RemoteAddr().String())
 	defer pC.Stop()
 
 	for  {
@@ -119,11 +121,8 @@ func (pC *Connection)SendMsg(iMsgID uint32,aData []byte) error  {
 		return errors.New("Pack erro msg ")
 	}
 
-	// 将数据发送给客户端
-	if _,err:= pC.pConn.Write(binaryMsg); err != nil {
-		fmt.Println("Pack erro msg id=",iMsgID,"err=",err)
-		return errors.New("send msg erro")
-	}
+	// 将数据发送给 写协程 由写协程发送给	客户端
+	pC.msgChan <- binaryMsg
 
 	return nil
 }
@@ -136,8 +135,8 @@ func  (pC *Connection)Start(){
 
 	// 启动从当前连接的读数据的业务
 	go pC.StartReadr()
-	// TODO 启动从当前连接写数据的业务
-
+	// 启动从当前连接写数据的业务
+	go pC.StartWriter()
 
 }
 
@@ -154,8 +153,13 @@ func  (pC *Connection)Stop(){
 
 	// 关闭socket 连接
 	pC.pConn.Close()
+
+	// 告知 writer 关闭
+	pC.ExitChan <- true
+
 	// 关闭管道 回收资源
 	close(pC.ExitChan)
+	close(pC.msgChan)
 }
 
 
@@ -175,6 +179,31 @@ func  (pC *Connection)GetConnID() uint32{
 func  (pC *Connection)RemoteAddr() net.Addr{
 	return pC.pConn.RemoteAddr()
 }
+
+
+// 写消息 goroutine , 专门发送给客户端消息的模块
+func (pC *Connection)StartWriter()  {
+	fmt.Println("[Writer Gortine is running ...]")
+	defer fmt.Println(pC.RemoteAddr().String()," [conn Writer exit!]")
+	// 不断阻塞的等待 channel 的消息， 进行发送消息到客户端
+	for  {
+		select {
+		case data := <-pC.msgChan:
+			// 有数据要写给客户端
+			if _,err := pC.pConn.Write(data);err != nil{
+				fmt.Println("send data err:",err)
+				return
+			}
+
+		case <- pC.ExitChan:
+			// 代表 Reader 已经退出，此时 writer 也要退出
+			return
+		}
+	}
+
+}
+
+
 
 
 
