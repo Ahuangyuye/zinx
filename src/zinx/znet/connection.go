@@ -1,9 +1,10 @@
 package znet
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
-	"zinx/src/zinx/utils"
 	"zinx/src/zinx/ziface"
 )
 
@@ -56,16 +57,43 @@ func (pC *Connection)StartReadr()  {
 
 	for  {
 		// 读取客户端的数据到buf 中
-		aBuf := make([]byte, utils.GlobalObject.IMaxPackageSize)
-		_,err  := pC.pConn.Read(aBuf)
-		if err != nil {
-			fmt.Println("recv buf err=",err)
-			continue
+		//aBuf := make([]byte, utils.GlobalObject.IMaxPackageSize)
+		//_,err  := pC.pConn.Read(aBuf)
+		//if err != nil {
+		//	fmt.Println("recv buf err=",err)
+		//	continue
+		//}
+		// 创建一个拆包解包的对象
+		objDP := NewDataPack()
+		// 读取客户端的 Msg Head 二进制流 8 字节
+		headData := make([]byte,objDP.GetHandLen())
+		if _,err := io.ReadFull(pC.GetTCPConnection(),headData); err != nil {
+			fmt.Println("read msg head error:",err)
+			break
 		}
+
+
+		// 拆包，得到msgID 和 msgDatalen 放在 msg 消息中
+		msg,err := objDP.Unpack(headData)
+		if err != nil {
+			fmt.Println("objDP Unpack  error:",err)
+			break
+		}
+		// 根据msgDatalen 再次读取 data，放在 msg.data 消息中
+		var aData[] byte
+		if msg.GetMsgLen() > 0 {
+			aData  = make([]byte,msg.GetMsgLen())
+			if _,err := io.ReadFull(pC.GetTCPConnection(),aData);err != nil{
+				fmt.Println("read msg data error:",err)
+				break
+			}
+		}
+		msg.SetMsgData(aData)
+
 		// 得到 当前 conn 数据的 Request 请求
 		objReq := Request{
 			conn: pC,
-			aData: aBuf,
+			objMsg: msg,
 		}
 
 		// 执行注册的路由方法
@@ -83,6 +111,31 @@ func (pC *Connection)StartReadr()  {
 		//}
 	}
 }
+
+
+// 提供一个sendmsg 方法， 将我们要发送给客户端的数据 ，先进性封包，再发送
+func (pC *Connection)SendMsg(iMsgID uint32,aData []byte) error  {
+	if pC.isClosed == true {
+		return  errors.New("Connection is closed")
+	}
+
+	// 将data进行封包 msgdataLen | msgid | msgdata
+	objDP := NewDataPack()
+	binaryMsg,err := objDP.Pack(NewMsgPackage(iMsgID,aData))
+	if err != nil{
+		fmt.Println("Pack erro msg id=",iMsgID,"err=",err)
+		return errors.New("Pack erro msg ")
+	}
+
+	// 将数据发送给客户端
+	if _,err:= pC.pConn.Write(binaryMsg); err != nil {
+		fmt.Println("Pack erro msg id=",iMsgID,"err=",err)
+		return errors.New("send msg erro")
+	}
+
+	return nil
+}
+
 
 
 // 启动连接 让当前的连接准备开始工作
@@ -132,9 +185,5 @@ func  (pC *Connection)RemoteAddr() net.Addr{
 }
 
 
-// 发送数据 将数据发送给远程的客户端
-func  (pC *Connection)Send(data []byte) error{
-	return  nil
-}
 
 
