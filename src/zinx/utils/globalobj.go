@@ -67,7 +67,7 @@ func init() {
 	// 如果配置文件没有加载，默认值
 	GlobalObject = &GLobalObj{
 		StrName:           "ZinxServerApp",
-		StrVersion:        "V0.8",
+		StrVersion:        "V0.9",
 		ITcpPort:          8999,
 		IMaxConn:          1000,
 		IMaxPackageSize:   4096,

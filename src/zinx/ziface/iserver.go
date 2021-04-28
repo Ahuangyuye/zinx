@@ -13,6 +13,22 @@ type IServer interface {
 	// 路由功能，给当前的服务注册一个路由方法, 供客户端的连接处理使用
 	AddRouter(iMsgID uint32,router IRouter)
 
+	// 获取 connMgr
+	GetConnManager() IConnManager
+
+	// 注册 OnConnStart 钩子函数的方法
+	SetOnConnStart(func(connection IConnection ))
+
+	// 注册 OnConnStop 钩子函数的方法
+	SetOnConnStop(func(connection IConnection ))
+
+
+	//调用 OnConnStart 钩子函数的方法
+	CallOnConnStart(connection IConnection )
+
+	// 调用 OnConnStop 钩子函数的方法
+	CallOnConnStop(connection IConnection )
+
 
 }
 

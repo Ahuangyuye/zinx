@@ -10,9 +10,12 @@ import (
 )
 
 /*
-连接模块
+	连接模块
 */
 type Connection struct {
+
+	// 当前 Conn 所属哪个 Server
+	pTcpServer ziface.IServer
 
 	// 当前连接的socket TCP 套接字
 	pConn *net.TCPConn
@@ -39,8 +42,9 @@ type Connection struct {
 
 
 // 初始化连接模块的方法
-func NewConnection( pConn *net.TCPConn,iConnID uint32,msgHanle ziface.IMsgHandle) *Connection {
+func NewConnection( pServer ziface.IServer,pConn *net.TCPConn,iConnID uint32,msgHanle ziface.IMsgHandle) *Connection {
 	pC := &Connection{
+		pTcpServer:pServer,
 		pConn: pConn,
 		iConnID: iConnID,
 		pMsgHandle: msgHanle,
@@ -48,6 +52,9 @@ func NewConnection( pConn *net.TCPConn,iConnID uint32,msgHanle ziface.IMsgHandle
 		msgChan: make(chan []byte),
 		ExitChan: make(chan bool,1),
 	}
+	// 将 conn 加入到 ConnManager 中
+	pC.pTcpServer.GetConnManager().AddConn(pC)
+
 	return pC
 }
 
@@ -144,6 +151,8 @@ func  (pC *Connection)Start(){
 	// 启动从当前连接写数据的业务
 	go pC.StartWriter()
 
+	// 调用 设置的回调函数
+	pC.pTcpServer.CallOnConnStart(pC)
 }
 
 // 停止连接 结束当前连接的工作
@@ -157,11 +166,17 @@ func  (pC *Connection)Stop(){
 
 	pC.isClosed = true
 
+	// 调用 设置的回调函数
+	pC.pTcpServer.CallOnConnStop(pC)
+
 	// 关闭socket 连接
 	pC.pConn.Close()
 
 	// 告知 writer 关闭
 	pC.ExitChan <- true
+
+	// 将当前连接从 connMgr 中删除
+	pC.pTcpServer.GetConnManager().RemoveConn(pC)
 
 	// 关闭管道 回收资源
 	close(pC.ExitChan)
