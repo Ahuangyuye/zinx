@@ -13,20 +13,20 @@ import (
 
 type GLobalObj struct {
 	/*
-	server
+		server
 	*/
 	TcpServer ziface.IServer // 当前zinx 全局的 server 对象
-	StrHostIP string					// 当前服务器主机监听的IP
-	ITcpPort int		// 当前服务器主机监听的port
-	StrName string 			// 当前服务器主的名称
+	StrHostIP string         // 当前服务器主机监听的IP
+	ITcpPort  int            // 当前服务器主机监听的port
+	StrName   string         // 当前服务器主的名称
 	/*
 		zinx
 	*/
-	StrVersion string 	// 当前zinx 的版本号
-	IMaxConn int 	// 当前zinx 主机所允许最大连接数
-	IMaxPackageSize uint32 	// 当前zinx 数据包的最大值
-
-
+	StrVersion        string // 当前zinx 的版本号
+	IMaxConn          int    // 当前zinx 主机所允许最大连接数
+	IMaxPackageSize   uint32 // 当前zinx 数据包的最大值
+	IWorkerPoolSize   uint32 // 当前业务工作worker池 Goroutine 数量
+	IMaxWorkerTaskLen uint32 // Zinx 框架允许用户最多开辟多少个 worker(限定条件)
 }
 
 /*
@@ -34,12 +34,10 @@ type GLobalObj struct {
 */
 var GlobalObject *GLobalObj
 
-
-
 // 从 zinx.json 去 加载用于自定义的参数
-func (pG *GLobalObj)Reload()  {
+func (pG *GLobalObj) Reload() {
 
-	data,err :=ioutil.ReadFile("conf/zinx.json")
+	data, err := ioutil.ReadFile("conf/zinx.json")
 
 	//strFile, _ := exec.LookPath(os.Args[0])
 	//strPath, _ := filepath.Abs(strFile)
@@ -49,36 +47,34 @@ func (pG *GLobalObj)Reload()  {
 	//fmt.Println(" Reload conf path",datapath)
 	//data,err :=ioutil.ReadFile(datapath)
 
-	if err != nil{
+	if err != nil {
 		panic(err)
 		//fmt.Println(" Reload conf/zinx.json err=",err)
 	}
 
 	// 将json 文件数据解析到struct 中
-	err = json.Unmarshal(data,&GlobalObject)
-	if err != nil{
+	err = json.Unmarshal(data, &GlobalObject)
+	if err != nil {
 		panic(err)
 		//fmt.Println(" Reload conf/zinx.json err=",err)
 	}
 }
 
-
 /*
 	提供一个 init 方法，初始化当前的 pGlobalObject
 */
-func init()  {
+func init() {
 	// 如果配置文件没有加载，默认值
-	GlobalObject = &GLobalObj {
-		StrName: "ZinxServerApp",
-		StrVersion: "V0.7",
-		ITcpPort: 8999,
-		IMaxConn: 1000,
-		IMaxPackageSize: 4096,
+	GlobalObject = &GLobalObj{
+		StrName:           "ZinxServerApp",
+		StrVersion:        "V0.8",
+		ITcpPort:          8999,
+		IMaxConn:          1000,
+		IMaxPackageSize:   4096,
+		IWorkerPoolSize:   10,		// worker 工作池的队列的个数
+		IMaxWorkerTaskLen: 1024,	// 每个worker 对应的消息队列的任务的数量的最大值
 	}
 
 	// 应该尝试从 conf/zinx.json 去加载用户自定义的参数
 	GlobalObject.Reload()
 }
-
-
-

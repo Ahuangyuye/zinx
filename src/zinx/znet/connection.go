@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"zinx/src/zinx/utils"
 	"zinx/src/zinx/ziface"
 )
 
@@ -100,9 +101,14 @@ func (pC *Connection)StartReadr()  {
 			objMsg: msg,
 		}
 
-		// 从路由中，找到注册绑定的Conn 对应的router 调用
-		// 根据绑定好的 msgID  找到对应处理业务的 API 业务执行
-		go pC.pMsgHandle.DoMsgHandler(&objReq)
+		if  utils.GlobalObject.IWorkerPoolSize > 0 {
+			// 已经开启了工作池机制，就将消息发送给Worker工作池处理
+			pC.pMsgHandle.SendMsgToTaskQueue(&objReq)
+		}else {
+			// 从路由中，找到注册绑定的Conn 对应的router 调用
+			// 根据绑定好的 msgID  找到对应处理业务的 API 业务执行
+			go pC.pMsgHandle.DoMsgHandler(&objReq)
+		}
 	}
 }
 
