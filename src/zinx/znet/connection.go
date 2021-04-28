@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"zinx/src/zinx/utils"
 	"zinx/src/zinx/ziface"
 )
@@ -26,17 +27,21 @@ type Connection struct {
 	// 当前的连接状态
 	isClosed bool
 
-
-
 	// 告知当前连接已经退出/停止 channel
 	ExitChan chan bool
 
 	// 无缓冲管道，用于读写 Goroutine 之间的通信
 	msgChan chan []byte
 
-
 	// 消息的管理 MsgID 和 对应的处理业务的API关系
 	pMsgHandle ziface.IMsgHandle
+
+	// 连接属性的集合
+	mapProperty map[string]interface{}
+
+	// 连接属性的锁
+	mapPropertyLock  sync.RWMutex
+
 }
 
 
@@ -51,6 +56,7 @@ func NewConnection( pServer ziface.IServer,pConn *net.TCPConn,iConnID uint32,msg
 		isClosed: false,
 		msgChan: make(chan []byte),
 		ExitChan: make(chan bool,1),
+		mapProperty:make(map[string]interface{}),
 	}
 	// 将 conn 加入到 ConnManager 中
 	pC.pTcpServer.GetConnManager().AddConn(pC)
@@ -224,7 +230,32 @@ func (pC *Connection)StartWriter()  {
 
 }
 
+//设置连接属性
+func (pC *Connection)SetProperty(strKey string,value interface{}){
+	pC.mapPropertyLock.Lock()
+	defer pC.mapPropertyLock.Unlock()
 
+	pC.mapProperty[strKey] = value
+}
+//获取链接属性
+func (pC *Connection)GetProperty(strKey string) (interface{},error){
+	pC.mapPropertyLock.RLock()
+	defer pC.mapPropertyLock.RUnlock()
+
+	if value,ok := pC.mapProperty[strKey]; ok{
+		return value,nil
+	}else {
+		return nil,errors.New("no preoperty found")
+	}
+
+}
+//移除连接属性
+func (pC *Connection)RemoveProperty(strKey string){
+	pC.mapPropertyLock.Lock()
+	defer pC.mapPropertyLock.Unlock()
+
+	delete(pC.mapProperty,strKey)
+}
 
 
 
