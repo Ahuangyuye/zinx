@@ -1,0 +1,277 @@
+
+syntax = "proto2";
+package pb;
+option go_package ="/pb"; // 项目生成的路径
+//游戏逻辑消息定义
+//游戏逻辑主消息ID
+enum LOGIC_MAIN_MSG
+{
+  MSG_GAMELOGIC_MAIN_ID = 0;
+}
+
+//游戏逻辑子消息ID定义
+//服务器发送客户端
+enum MESSAGE_SC_BURRACO_SUB_ID
+{
+  MSGID_SC_BURRACO_GAME_START_DATA        = 1000;                    //游戏开始数据          [MSG_SC_BURRACO_GameStartData]
+  MSGID_SC_BURRACO_SEND_HAND_CARD         = 1001;                    //发送手牌             [MSG_SC_BURRACO_SendHandCard]
+  MSGID_SC_BURRACO_INFORM_USEROP          = 1003;                    //通知玩家操作消息       [MSG_SC_BURRACO_InformUserOP]
+
+
+  MSGID_SC_BURRACO_GAME_RESULT            = 1005;                    //游戏结算              [MSG_SC_BURRACO_GameResult]
+  MSGID_SC_BURRACO_GAMESCENCE_PLAY        = 1006;                    //游戏场景(断线重连)      [MSG_SC_BURRACO_GamePlay]
+  MSGID_SC_BURRACO_GAMESCENCE_FREE        = 1007;                    //空闲场景
+  MSGID_SC_BURRACO_ROBOT_GAME_RESULT      = 1008;                    //机器人退出 主动结算     [MSG_SC_BURRACO_RobotGameResult]
+
+
+  MSGID_SC_BURRACO_USER_GET_CARD_RESULT   = 1011;                    //玩家拿牌结果          [MSG_SC_BURRACO_UserGetCardResult]
+  MSGID_SC_BURRACO_USER_SOLITAIRE_RESULT  = 1012;                    //玩家组牌接龙solitaire结果[MSG_SC_BURRACO_UserSolitaireResult]
+  MSGID_SC_BURRACO_USER_DISCARD_RESULT    = 1013;                    //玩家弃牌结果          [MSG_SC_BURRACO_UserDiscardResult]
+
+  MSGID_SC_BURRACO_SEND_USER_POT_CARDS    = 1014;                    //玩家打完第一轮,发送交叉牌堆的牌[MSG_SC_BURRACO_SendUserPOTCards]
+
+}
+
+//客户端发送服务器
+enum MESSAGE_CS_BURRACO_SUB_ID
+{
+  MSGID_CS_BURRACO_USER_GET_CARD  = 2001;                            // 玩家拿牌(弃牌堆,剩余牌堆)[MSG_CS_BURRACO_UserGetCard]
+  MSGID_CS_BURRACO_USER_SOLITAIRE = 2002;                            //玩家组牌接龙solitaire          [MSG_CS_BURRACO_UserSolitaire]
+  MSGID_CS_BURRACO_USER_DISCARD   = 2003;                            //玩家弃牌            [MSG_CS_BURRACO_UserDiscard]
+
+  MSGID_CS_BURRACO_USER_GAME_END  = 2004;                            //玩家结算 [MSG_CS_BURRACO_UserGameEnd]
+
+  MSGID_CS_BURRACO_ROBOT_GAME_END = 2008;                            //机器人退出 主动结算 [MSG_CS_BURRACO_RobotGameEnd]
+}
+
+
+
+// 常量定义
+enum BURRACO_CONST
+{
+  BURRACO_GAME_PLAYER = 4;                                        //玩家人数
+  BURRACO_SEND_HAND_CARD_COUNT = 11;                              //每轮发手牌的数量
+  BURRACO_SEND_TABLE_CARD_COUNT = 1;                              // 开局第一张牌放入弃牌区
+}
+
+
+
+//动作类型
+enum BURRACO_ACTION_TYPE
+{
+  MSG_BURRACO_ACTION_DISCARD = 1;                                     //弃牌
+  MSG_BURRACO_ACTION_GETTABLECARD = 2;                                //摸底牌
+  MSG_BURRACO_ACTION_GETDISCARD = 3;                                  //摸弃牌
+  MSG_BURRACO_ACTION_GROUPCARD = 4;                                   //组牌
+}
+
+//抓牌的来源
+enum BURRACO_PICK_FROM
+{
+  MSG_FROM_DESK = 1;                                              //从桌面抓牌
+  MSG_FROM_GIVEUP = 2;                                            //从弃牌堆抓牌
+}
+
+//游戏状态
+enum BURRACO_GAME_STATUS
+{
+  MSG_BURRACO_GAME_STATUS_FREE = 1;                               //空闲状态[不能抓牌组牌弃牌]
+  MSG_BURRACO_GAME_STATUS_SEND_CARD = 2;                          //发牌状态
+  MSG_BURRACO_GAME_STATUS_GET_CARDS = 3;                          //抓牌状态
+  MSG_BURRACO_GAME_STATUS_SOLITAIRE = 4;                          //组牌状态[solitaire 接龙]
+  MSG_BURRACO_GAME_STATUS_DISCARDS = 5;                           //弃牌状态[这个可以没有的]
+}
+
+//游戏开始数据
+message MSG_SC_BURRACO_GameStartData
+{
+  required uint32 dwCardNum               = 1;               // 牌总数
+  required uint32 dwBaseScore             = 2;               // 底分
+}
+
+
+// 组牌区数据 (摆牌区域)
+message GroupCardData
+{
+  required uint32 dwGroupIndex            = 1;	            // 第几组牌
+  repeated uint32 dwGroupIndexData        = 2;                // 这一组  牌的数据
+}
+
+//桌面通用数据
+message MSG_DeskData
+{
+  required uint32 dwTableCardsCount            = 1;          // 桌面上底牌数量
+  repeated uint32 tabDiscardDataList           = 2;          // 弃牌区域的牌
+  repeated GroupCardData tabGroupCardDataList1 = 3;          // 1队伍 组牌区域的牌
+  repeated GroupCardData tabGroupCardDataList2 = 4;          // 2队伍 组牌区域的牌
+  optional uint32 dwScore1                     = 5;          // 1队伍 实时分数
+  optional uint32 dwScore2                     = 6;          // 2队伍 实时分数
+  optional uint32 dwPOTCount1                  = 7;          // 1队伍交叉牌堆数量[0,1]11张牌
+  optional uint32 dwPOTCount2                  = 8;          // 2队伍交叉牌堆数量[0,1]
+  repeated uint32 tabLastGetDiscardList        = 9;          // 上次拿弃牌区的数据
+}
+
+// 玩家游戏数据
+message MSG_PlayerGameingData
+{
+  required uint32 tabHandCountData        = 1;                //该玩家手牌的数量
+  required uint32 dwTeam                  = 2;                //所在队伍
+}
+
+//发送手牌
+message MSG_SC_BURRACO_SendHandCard
+{
+  required MSG_DeskData DeskInfo              = 1;             // 桌面通用信息
+  repeated MSG_PlayerGameingData PlayerInfo   = 2;             // 各玩家游戏数据
+  required uint32 dwChairID                   = 3;             // 最先发牌座位号
+  required uint32 dwCardNum                   = 4;             // 手牌数量
+  repeated uint32 dwCardData                  = 5;             // 手牌列表
+}
+
+
+//游戏结算后各玩家相关信息
+message MSG_BURRACOUserSettleInfo
+{
+  required uint32 dwChairID = 1;                              //玩家椅子ID
+  optional int32 dwGold = 2;                                  //获得的金币数
+  optional int32 dwTotalScore = 3;                            //最后得分
+  optional int32 dwCleanBurraco = 4;                          // 无鬼长组合得分
+  optional int32 dwDirtyBurraco = 5;                          // 有鬼长组合得分
+  optional int32 dwTableScore = 6;                            // 所有组合里牌的分值之和
+  optional int32 dwCardsInHand = 7;                           // 减所有手牌里的分值之和(负数)
+  optional int32 dwPOT = 8;                                   // 所属队伍是否拿过交叉牌堆里的牌[拿过:0 没拿过:-100]
+  optional int32 dwClosing = 9;                               // 队伍里有人打完牌+100
+}
+
+//游戏结算
+message MSG_SC_BURRACO_GameResult
+{
+  required uint32 dwWinnerGroupID = 1;                            //赢家队伍ID  1或者2
+  repeated uint32 dwWinnerChairID = 2;                            //赢家椅子ID
+  repeated MSG_BURRACOUserSettleInfo tabUserSettleInfoList = 3;   //玩家列表
+}
+
+
+
+//游戏场景(断线重连)
+message MSG_SC_BURRACO_GamePlay
+{
+  required uint32 dwBaseScore                 = 1;              //底分
+  required uint32 dwCurrentChairID            = 2;              //当前操作玩家椅子ID
+  required uint32 gameState      = 3;                           //当前操作阶段
+  required uint32 dwOppTime                   = 4;              //操作倒计时
+  repeated uint32 dwHandCard                  = 5;              //手牌列表
+  repeated MSG_PlayerGameingData PlayerInfo   = 6;              //玩家游戏数据
+  required MSG_DeskData DeskInfo              = 7;              //桌面游戏数据
+}
+
+
+//通知玩家操作
+message MSG_SC_BURRACO_InformUserOP
+{
+  required uint32 dwChairID = 1;                              //操作玩家椅子ID
+  required uint32 dwOppTime = 2;                              //操作倒计时
+  optional uint32 dwStatus = 3;                               //操作状态
+}
+
+
+//玩家拿牌
+message MSG_CS_BURRACO_UserGetCard
+{
+  required uint32 dwChairID = 1;                              //操作玩家椅子ID
+  required uint32 dwGetType = 2;                   //拿了哪里的牌[1:剩余牌堆  2:弃牌堆]
+  repeated uint32 dwCards = 3;                                //牌值数据
+}
+
+//玩家拿牌结果
+message MSG_SC_BURRACO_UserGetCardResult
+{
+  required uint32 iCode = 1;                                  // 玩家拿牌结果[0:可以拿牌 1:不能拿牌]
+  optional uint32 dwChairID = 2;                              //操作玩家椅子ID
+  optional uint32 dwUserID = 3;                               //操作的玩家ID
+  optional uint32 dwGetType = 4;                              //拿了哪里的牌[1:剩余牌堆  2:弃牌堆]
+  repeated uint32 dwCards = 5;                                //牌值数据[从剩余牌堆拿的数据只有操作者知道]
+  optional uint32 dwTableCount = 6;                           // 剩余牌堆剩余数量
+  optional uint32 dwGetCount = 7;                             //拿了几张牌
+}
+
+
+
+
+//玩家组牌接龙solitaire
+message MSG_CS_BURRACO_UserSolitaire
+{
+  required uint32 dwChairID = 1;                              // 操作玩家椅子ID
+  optional uint32 dwSolitaireIndex = 2;                       // 第几组接龙(起牌=当前有几组牌+1)
+  repeated uint32 dwSolitaireCards = 3;                       // 接龙的牌的牌值
+}
+
+//iCode [1:不能操作  2:当前操作者不是你  3:操作状态不对 4:组牌参数不合法 5:手上无此牌 ]
+//[ 11:表示不能 组成同牌值 或者 组成顺子  ]
+//[ 12:最后一轮 手牌全部打完 ]
+//[ 13: 没有 7 张以上的组合 不可以结束]
+//[ 14:第二轮最后一张牌不可以是 鬼牌 ]
+//[ 15: 系统错误]
+//玩家组牌接龙solitaire结果
+message MSG_SC_BURRACO_UserSolitaireResult
+{
+  required uint32 iCode = 1;                                  // 玩家接龙错误码[0:可以接龙 1:不能接龙]
+  required uint32 dwChairID = 2;                              //操作玩家椅子ID
+  optional uint32 dwUserID = 3;                               //操作的玩家ID
+  optional uint32 dwSolitaireIndex = 4;                       // 第几组接龙(起牌=当前有几组牌+1)
+  repeated uint32 dwSolitaireCards = 5;                       // 接龙的牌的牌值
+  optional uint32 dwHandResidueCount =  6 ;                   // 接龙之后 手上还有多少张牌
+  optional uint32 dwOwnGorpScore = 7;                         // 当前操作者所属队伍的得分
+  repeated uint32 dwHandCards = 8;                            // 接龙之后 手上的牌[当前操作的玩家才有此数据]
+}
+
+
+//玩家弃牌
+message MSG_CS_BURRACO_UserDiscard
+{
+  required uint32 dwChairID = 1;                              // 操作玩家椅子ID
+  optional uint32 dwDiscardCard = 2;                          // 弃牌的牌值
+}
+//玩家弃牌结果
+message MSG_SC_BURRACO_UserDiscardResult
+{
+  required uint32 iCode = 1;                                  // 玩家弃牌错误码[0:可以接龙 1:不能接龙]
+  optional uint32 dwUserID = 2;                               // 操作的玩家ID
+  optional uint32 dwChairID = 3;                              // 操作玩家椅子ID
+  optional uint32 dwDiscardCard = 4;                          // 弃牌的牌值
+}
+
+//玩家打完第一轮,发送交叉牌堆的牌
+message MSG_SC_BURRACO_SendUserPOTCards
+{
+  required uint32 dwChairID = 1;                              // 接收牌玩家椅子ID
+  optional uint32 dwUserID = 2;                               // 接收牌的玩家ID
+  optional uint32 dwHandCardCount = 3;                        // 此玩家手牌数量
+  repeated uint32 dwCards = 4;                                // 交叉牌堆的牌[对应的玩家才有这数据]
+}
+
+// 玩家结算
+message MSG_CS_BURRACO_UserGameEnd
+{
+  required uint32 dwChairID = 1;                              // 服务器不解析
+}
+
+// 机器人退出 主动结算
+message MSG_CS_BURRACO_RobotGameEnd
+{
+  required uint32 dwChairID = 1;                              // 服务器不解析
+}
+
+//机器人退出 主动结算 返回
+message MSG_SC_BURRACO_RobotGameResult
+{
+  required uint32 dwWinnerGroupID = 1;                            //赢家队伍ID  1或者2
+  repeated uint32 dwWinnerChairID = 2;                            //赢家椅子ID
+  repeated MSG_BURRACOUserSettleInfo tabUserSettleInfoList = 3;   //玩家列表
+}
+
+
+
+
+
+

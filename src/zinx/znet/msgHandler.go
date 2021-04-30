@@ -37,6 +37,7 @@ func (pMH *MsgHandle) DoMsgHandler(request ziface.IRequest) {
 	handler, ok := pMH.Apis[request.GetMsgID()]
 	if !ok {
 		fmt.Println("api msgID=", request.GetMsgID(), " is not")
+		return
 	}
 
 	// 2 调用对应的 router 业务

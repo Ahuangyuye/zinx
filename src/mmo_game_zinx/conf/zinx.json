@@ -1,0 +1,16 @@
+
+
+{
+    "StrName":"MMO_Server",
+    "StrHostIP":"127.0.0.1",
+    "ITcpPort":8999,
+    "IMaxConn":300,
+    "IWorkerPoolSize":10
+}
+
+
+
+
+
+
+
