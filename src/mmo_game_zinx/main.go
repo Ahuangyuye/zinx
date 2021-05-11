@@ -34,9 +34,17 @@ func OnConnectionAdd(conn ziface.IConnection) {
 }
 
 
+// 当前客户端建立连接之后的 hook 函数
+func OnConnectionLost(conn ziface.IConnection) {
+	// 通过连接属性得到当前连接所绑定的 pid
+	pid,_ := conn.GetProperty("pid")
+	player := core.PWorldMgrObj.GetPlayerByPid(pid.(int32))
 
+	// 触发玩家下线的业务
+	player.Offline()
 
-
+	fmt.Println("===> Player Pid=", player.Pid," offline ...")
+}
 
 
 func main() {
@@ -45,9 +53,10 @@ func main() {
 
 	// 连接和销毁 hook 钩子函数
 	pServer.SetOnConnStart(OnConnectionAdd)
-
+	pServer.SetOnConnStop(OnConnectionLost)
 	// 注册一些路由业务
 	pServer.AddRouter(2,&apis.WorldChatApi{})
+	pServer.AddRouter(3,&apis.MoveApi{})
 
 	// 启动服务
 	pServer.Server()

@@ -122,7 +122,7 @@ func (p *Player) Talk(strConent string) {
 }
 
 // 同步周边玩家，告知他们当前玩家已经上线
-func (p *Player) SyncSurrounding(strConent string) {
+func (p *Player) SyncSurrounding() {
 	// 1 获取当前玩家周围有哪些玩家（九宫格）
 	pids := PWorldMgrObj.PAoiMgr.GetPidsByPos(p.X, p.Z)
 	players := make([]*Player, 0, len(pids))
@@ -199,22 +199,48 @@ func (p *Player) UnpdatePos(x,y,z,v float32){
 	}
 
 	// 获取当前玩家的周边玩家 AOI 九宫格之内的玩家
-	player := p.GetSuroundingPlayers()
+	players := p.GetSuroundingPlayers()
 
 	// 一次给每个玩家对应的客户端发送当前玩家位置更新的消息
-
-
+	for _,player := range players {
+		player.SendMsg(200,proto_msg)
+	}
 }
 
 
 
-//	// 获取当前玩家的周边玩家 AOI 九宫格之内的玩家
+//	获取当前玩家的周边玩家 AOI 九宫格之内的玩家
 func (p *Player) GetSuroundingPlayers()[]*Player {
 
 	pids := PWorldMgrObj.PAoiMgr.GetPidsByPos(p.X,p.Z)
 
 	players := make([]*Player,0,len(pids))
 	for _,pid := range  pids{
-		players = append(players)
+		players = append(players,PWorldMgrObj.GetPlayerByPid(int32(pid)))
 	}
+	return players
 }
+
+
+
+// 触发玩家下线的业务
+func (p *Player) Offline(){
+	// 得到当前玩家周围有哪些玩家
+	players :=  p.GetSuroundingPlayers()
+	// 给周围玩家广播 msgID:201 消息
+	proto_msg := &pb.SyncPid{
+		Pid: p.Pid,
+	}
+
+	for _,player := range players {
+		player.SendMsg(201,proto_msg)
+	}
+
+	// 将当前玩家从世界管理器中删除
+	PWorldMgrObj.PAoiMgr.RemoveFromGridByPos(int(p.Pid),p.X,p.Z)
+	// 将当前玩家从AOI管理器中删除
+	PWorldMgrObj.RemovePlayerByPid(p.Pid)
+}
+
+
+
